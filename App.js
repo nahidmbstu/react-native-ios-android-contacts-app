@@ -18,6 +18,8 @@ import {
   FlatList,
   Platform,
   Linking,
+  TextInput,
+  TouchableOpacity,
 } from 'react-native';
 
 import {Colors} from 'react-native/Libraries/NewAppScreen';
@@ -55,14 +57,38 @@ const ContactView = ({item}) => {
     </View>
   );
 };
-const Header = () => (
-  <View style={styles.headerStyle}>
-    <Text style={{color: TextColor, fontSize: 20}}>Contacts</Text>
+const Header = ({showSearch}) => {
+  const search = () => {
+    showSearch();
+  };
+
+  return (
+    <View style={styles.headerStyle}>
+      <Text style={{color: TextColor, fontSize: 20}}>Contacts</Text>
+      <TouchableOpacity onPress={search}>
+        <Icon name="search" size={30} color="green" />
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const SearchBox = props => (
+  <View style={{padding: 10}}>
+    <TextInput
+      underlineColorAndroid={'tomato'}
+      {...props}
+      placeholder="search .."
+      autoFocus={true}
+    />
   </View>
 );
 
 const App = () => {
   const [contacts, setContacts] = React.useState([]);
+  const [searchBox, setSearchBox] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [renderedContacts, setRenderContacts] = React.useState([]);
+
   const isDarkMode = useColorScheme() === 'dark';
 
   React.useEffect(() => {
@@ -74,7 +100,7 @@ const App = () => {
       PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CONTACTS, {
         title: 'Contacts',
         message: 'This app would like to view your contacts.',
-        buttonPositive: 'Please accept bare mortal',
+        buttonPositive: 'Please accept ',
       }).then(res => {
         console.log(res);
 
@@ -82,6 +108,7 @@ const App = () => {
           Contacts.getAll().then(numbers => {
             console.log(numbers);
             setContacts(numbers);
+            setRenderContacts(numbers);
           });
         }
       });
@@ -106,6 +133,7 @@ const App = () => {
           Contacts.getAll().then(numbers => {
             console.log(numbers);
             setContacts(numbers);
+            setRenderContacts(numbers);
           });
         }
         if (permission === 'denied') {
@@ -115,13 +143,38 @@ const App = () => {
     }
   };
 
+  const showSearch = () => {
+    setSearchBox(!searchBox);
+  };
+
+  const onChangeSearch = query => {
+    setSearchQuery(query);
+
+    let text = query.toLowerCase();
+    let fullList = contacts;
+    let filteredList = fullList.filter(item => {
+      // search from a full list, and not from a previous search results list
+      if (item.givenName.toLowerCase().match(text)) return item;
+    });
+    if (!text || text === '') {
+      setRenderContacts(fullList);
+    } else if (!filteredList.length) {
+      setContacts(fullList);
+    } else if (Array.isArray(filteredList)) {
+      setRenderContacts(filteredList);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.back}>
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
       <View style={styles.back}>
-        <Header />
+        <Header showSearch={showSearch} />
+        {searchBox ? (
+          <SearchBox onChangeText={onChangeSearch} value={searchQuery} />
+        ) : null}
         <FlatList
-          data={contacts}
+          data={renderedContacts}
           renderItem={({item}) => <ContactView item={item} />}
         />
       </View>
@@ -135,10 +188,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
   },
   headerStyle: {
+    flexDirection: 'row',
     height: 65,
     width: '100%',
-    justifyContent: 'center',
     padding: 10,
+    justifyContent: 'space-between',
   },
   contactStyle: {
     flexDirection: 'row',
